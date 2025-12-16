@@ -1,0 +1,11 @@
+{
+    "python.autoComplete.extraPaths": [
+        "/home/localuser/Documents/flux2/.venv/lib/python3.11/site-packages"
+    ],
+    "python.analysis.extraPaths": [
+        "/home/localuser/Documents/flux2/.venv/lib/python3.11/site-packages"
+    ],
+    "python.defaultInterpreterPath": "/home/localuser/Documents/flux2/.venv/bin/python",
+    "python.terminal.activateEnvironment": false,
+    "python.terminal.activateEnvInCurrentTerminal": false,
+}
