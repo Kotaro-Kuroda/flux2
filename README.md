@@ -1,142 +1,143 @@
-# FLUX.2
-by Black Forest Labs: https://bfl.ai.
+# FLUX.2 Inference
 
-Documentation for our API can be found here: [docs.bfl.ai](https://docs.bfl.ai/).
+FLUX.2 のオープンウェイトモデルをローカルで実行するための推論コードです。画像生成・編集に対応し、テキストエンコードから画像生成まで完全にローカルで処理できます。
 
-This repo contains minimal inference code to run image generation & editing with our FLUX.2 open-weight models.
+by Black Forest Labs: https://bfl.ai
+API ドキュメント: https://docs.bfl.ai
 
-## `FLUX.2 [dev]`
 
-`FLUX.2 [dev]` is a 32B parameter flow matching transformer model capable of generating and editing (multiple) images. The model is released under the [FLUX.2-dev Non-Commercial License](model_licenses/LICENSE-FLUX-DEV) and can be found [here](https://huggingface.co/black-forest-labs/FLUX.2-dev).
+## 概要
 
-Note that the below script for `FLUX.2 [dev]` needs considerable amount of VRAM (H100-equivalent GPU). We partnered with Hugging Face to make quantized versions that run on consumer hardware; below you can find instructions on how to run it on a RTX 4090 with a remote text encoder, for other quantization sizes and combinations, check the [diffusers quantization guide here](docs/flux2_dev_hf.md).
+- **完全ローカル実行**: テキストエンコーダー（Mistral3 Small）、フローモデル、オートエンコーダーをすべてローカルGPUで実行
+- **プロンプトアップサンプリング**: ローカルまたはOpenRouter経由でプロンプトを拡張（任意）
+- **モデル自動取得**: Hugging Face Hub から `black-forest-labs/FLUX.2-dev` を自動ダウンロード、または手元の `weights/` を利用
+- **柔軟な実行方法**: CLI（対話モード・単発実行）、Diffusers パイプライン、Jupyter Notebook
 
-### Text-to-image examples
 
-![t2i-grid](assets/teaser_generation.png)
+## 動作要件
 
-### Editing examples
+- **Python**: 3.10以上、3.13未満（推奨: 3.11）
+- **GPU**: CUDA対応GPU（推奨）
+  - VRAM: 約20GB以上（4-bit量子化構成）
+  - VRAM不足時: `--cpu_offloading=True` でCPUへ一部オフロード可能
+- **OS**: Linux / macOS / Windows（WSL2推奨）
 
-![edit-grid](assets/teaser_editing.png)
 
-### Prompt upsampling
+## 環境構築
 
-`FLUX.2 [dev]` benefits significantly from prompt upsampling. The inference script below offers the option to use both local prompt upsampling with the same model we use for text encoding ([`Mistral-Small-3.2-24B-Instruct-2506`](https://huggingface.co/mistralai/Mistral-Small-3.2-24B-Instruct-2506)), or alternatively, use any model on [OpenRouter](https://openrouter.ai/) via an API call.
-
-See the [upsampling guide](docs/flux2_with_prompt_upsampling.md) for additional details and guidance on when to use upsampling.
-
-## `FLUX.2` autoencoder
-
-The FLUX.2 autoencoder has considerably improved over the [FLUX.1 autoencoder](https://huggingface.co/black-forest-labs/FLUX.1-dev/blob/main/ae.safetensors). The autoencoder is released under [Apache 2.0](https://huggingface.co/datasets/choosealicense/licenses/blob/main/markdown/apache-2.0.md) and can be found [here](https://huggingface.co/black-forest-labs/FLUX.2-dev/blob/main/ae.safetensors). For more information, see our [technical blogpost](https://bfl.ai/research/representation-comparison).
-
-## Local installation
-
-The inference code was tested on GB200 and H100 (with CPU offloading).
-
-### GB200
-
-On GB200, we tested `FLUX.2 [dev]` using CUDA 12.9 and Python 3.12.
+### uvによるセットアップ（推奨）
 
 ```bash
-python3.12 -m venv .venv
-source .venv/bin/activate
-pip install -e . --extra-index-url https://download.pytorch.org/whl/cu129 --no-cache-dir
+# uvのインストール（未インストールの場合）
+pip install uv
+# 依存関係のインストール
+uv sync
+
+# 仮想環境の有効化
+source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\activate   # Windows
 ```
 
-### H100
+### Hugging Face ログイン
 
-On H100, we tested `FLUX.2 [dev]` using CUDA 12.6 and Python 3.10.
+モデルを自動取得する場合、Hugging Face へのログインが必要です:
 
 ```bash
-python3.10 -m venv .venv
-source .venv/bin/activate
-pip install -e . --extra-index-url https://download.pytorch.org/whl/cu126 --no-cache-dir
+# gated モデルへのアクセス承認を事前に取得
+# https://huggingface.co/black-forest-labs/FLUX.2-dev
+
+uv run hf auth login
 ```
 
-## Run the CLI
 
-Before running the CLI, you may download the weights from [here](https://huggingface.co/black-forest-labs/FLUX.2-dev) and set the following environment variables.
+## モデルウェイトの指定（任意）
+
+同梱の `weights/` ディレクトリを利用する場合、環境変数で指定できます:
 
 ```bash
-export FLUX2_MODEL_PATH="<flux2_path>"
-export AE_MODEL_PATH="<ae_path>"
+export FLUX2_MODEL_PATH="$(pwd)/weights/flux2-dev.safetensors"
+export AE_MODEL_PATH="$(pwd)/weights/ae.safetensors"
 ```
 
-If you don't set the environment variables, the weights will be downloaded
-automatically.
+自動ダウンロード時のキャッシュ場所:
+```
+~/.cache/huggingface/hub/
+```
 
-You can start an interactive session with loaded weights by running the
-following command. That will allow you to do both text to image generation as
-well as editing one or multiple images.
+カスタムキャッシュディレクトリを使う場合:
 ```bash
-export PYTHONPATH=src
-python scripts/cli.py
+export HF_HOME=/path/to/custom/cache
 ```
 
-On H100, we additionally set the flag `--cpu_offloading True`.
 
-## Watermarking
+## デモの利用方法
+詳細は[Flux2 README](./README_origin.md)を参照。
+### Diffusers パイプライン（Python）
 
-We've added an option to embed invisible watermarks directly into the generated images
-via the [invisible watermark library](https://github.com/ShieldMnt/invisible-watermark).
-
-Additionally, we are recommending implementing a solution to mark the metadata of your outputs, such as [C2PA](https://c2pa.org/)
-
-## 🧨 Lower VRAM diffusers example
-
-The below example should run on a RTX 4090. For more examples check the [diffusers quantization guide here](docs/flux2_dev_hf.md)
+ローカルでテキストエンコードを実行する例:
+GPUのVRAMが24~32GBの場合は、以下の4bit量子化したモデルで完全にローカル環境で実行可能。
 
 ```python
 import torch
 from diffusers import Flux2Pipeline
-from diffusers.utils import load_image
-from huggingface_hub import get_token
-import requests
-import io
+from PIL import Image
 
 repo_id = "diffusers/FLUX.2-dev-bnb-4bit"
 device = "cuda:0"
 torch_dtype = torch.bfloat16
 
-def remote_text_encoder(prompts):
-    response = requests.post(
-        "https://remote-text-encoder-flux-2.huggingface.co/predict",
-        json={"prompt": prompts},
-        headers={
-            "Authorization": f"Bearer {get_token()}",
-            "Content-Type": "application/json"
-        }
-    )
-    prompt_embeds = torch.load(io.BytesIO(response.content))
-
-    return prompt_embeds.to(device)
-
+# パイプラインの初期化
 pipe = Flux2Pipeline.from_pretrained(
-    repo_id, text_encoder=None, torch_dtype=torch_dtype
+    repo_id, torch_dtype=torch_dtype
 ).to(device)
 
-prompt = "Realistic macro photograph of a hermit crab using a soda can as its shell, partially emerging from the can, captured with sharp detail and natural colors, on a sunlit beach with soft shadows and a shallow depth of field, with blurred ocean waves in the background. The can has the text `BFL Diffusers` on it and it has a color gradient that start with #FF5733 at the top and transitions to #33FF57 at the bottom."
+# メモリ最適化（任意）
+pipe.enable_model_cpu_offload()
+
+# 画像生成
+prompt = "a photo of a forest with mist swirling around the tree trunks"
+input_image = Image.open("input.jpg")  # 任意
 
 image = pipe(
-    prompt_embeds=remote_text_encoder(prompt),
-    #image=load_image("https://huggingface.co/spaces/zerogpu-aoti/FLUX.1-Kontext-Dev-fp8-dynamic/resolve/main/cat.png") #optional image input
+    prompt=prompt,
+    image=[input_image],  # 省略可能
     generator=torch.Generator(device=device).manual_seed(42),
-    num_inference_steps=50, #28 steps can be a good trade-off
-    guidance_scale=4,
+    num_inference_steps=28,
+    guidance_scale=4.0,
 ).images[0]
 
-image.save("flux2_output.png")
+image.save("output.png")
 ```
 
-## Citation
 
-If you find the provided code or models useful for your research, consider citing them as:
+### 4. Jupyter Notebook
 
-```bib
-@misc{flux-2-2025,
-    author={Black Forest Labs},
-    title={{FLUX.2: Frontier Visual Intelligence}},
-    year={2025},
-    howpublished={\url{https://bfl.ai/blog/flux-2}},
-}
+プロジェクト内の `test.ipynb` にサンプルコードがあります:
+
+```bash
+uv run jupyter notebook test.ipynb
 ```
+
+
+## パラメータ説明
+
+| パラメータ             | 説明                                                  | デフォルト |
+| ---------------------- | ----------------------------------------------------- | ---------- |
+| `prompt`               | 生成する画像の説明文                                  | -          |
+| `width` / `height`     | 出力画像サイズ（ピクセル）                            | 1360 / 768 |
+| `num_steps`            | デノイジングステップ数                                | 50         |
+| `guidance`             | ガイダンススケール（高いほどプロンプトに忠実）        | 4.0        |
+| `seed`                 | 乱数シード（再現性確保）                              | ランダム   |
+| `input_images`         | 入力画像パス（編集モード）                            | なし       |
+| `match_image_size`     | 入力画像のサイズに合わせる（インデックス指定）        | なし       |
+| `upsample_prompt_mode` | プロンプト拡張モード: `none` / `local` / `openrouter` | `none`     |
+| `cpu_offloading`       | CPUオフロード有効化                                   | False      |
+
+
+
+
+## 参考ドキュメント
+
+- [Diffusers経由の利用方法](docs/flux2_dev_hf.md)
+- [プロンプトアップサンプリング解説](docs/flux2_with_prompt_upsampling.md)
+- [オリジナルREADME](README_origin.md)（存在する場合）
