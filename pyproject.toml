@@ -22,6 +22,7 @@ dependencies = [
   "diffusers>=0.35.2",
   "accelerate>=1.12.0",
   "matplotlib>=3.10.7",
+  "gradio>=6.2.0",
 ]
 
 [project.optional-dependencies]
