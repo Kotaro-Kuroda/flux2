@@ -8,6 +8,7 @@ import gc
 import gradio as gr
 import torch
 from diffusers import Flux2Pipeline
+from googletrans import LANGUAGES, Translator
 from PIL import Image
 
 
@@ -125,6 +126,24 @@ class FLUX2App:
             return None, error_msg
 
 
+async def translate_to_english(prompt):
+    """プロンプトを英語に翻訳"""
+    if not prompt or prompt.strip() == "":
+        return "", "⚠️ プロンプトが空です"
+
+    try:
+        translator = Translator()
+        # awaitを使用してコルーチンを実行
+        translated = await translator.translate(prompt, src='ja', dest='en')
+        lang_name = LANGUAGES.get('ja', 'Japanese')
+        return translated.text, f"✅ 翻訳完了: {lang_name} → English\n原文: {prompt}\n翻訳: {translated.text}"
+
+    except Exception as e:
+        error_msg = f"❌ 翻訳エラー: {type(e).__name__}: {str(e)}"
+        print(error_msg)
+        return prompt, error_msg
+
+
 def create_ui():
     """Gradio UIを作成"""
     app = FLUX2App()
@@ -148,6 +167,15 @@ def create_ui():
                     placeholder="生成したい画像の説明を入力してください（例: a beautiful sunset over the ocean）",
                     lines=3,
                     value="a beautiful sunset over the ocean with vibrant colors"
+                )
+
+                with gr.Row():
+                    translate_btn = gr.Button("🌐 英語に翻訳", size="sm")
+
+                translate_status = gr.Textbox(
+                    label="翻訳ステータス",
+                    interactive=False,
+                    visible=False
                 )
 
                 image_input = gr.Image(
@@ -226,6 +254,18 @@ def create_ui():
         )
 
         # イベント設定
+        # 翻訳ボタン
+        async def on_translate(prompt):
+            translated, status = await translate_to_english(prompt)
+            return translated, status, gr.update(visible=True)
+
+        translate_btn.click(
+            fn=on_translate,
+            inputs=[prompt_input],
+            outputs=[prompt_input, translate_status, translate_status]
+        )
+
+        # 生成ボタン
         generate_btn.click(
             fn=app.generate_image,
             inputs=[
